@@ -27,10 +27,11 @@ function FindDonorsForm() {
     { name: "Profile", href: "/dashboard/recipient/profile", icon: <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
   ];
 
-  const handleSearch = async () => {
+  const handleSearch = async (groupToSearch?: string) => {
+    const activeGroup = groupToSearch || searchGroup;
     setLoading(true);
     try {
-      const res = await api.get(`/auth/donors?bloodGroup=${encodeURIComponent(searchGroup)}`);
+      const res = await api.get(`/auth/donors?bloodGroup=${encodeURIComponent(activeGroup)}`);
       setDonors(res.data);
       setHasSearched(true);
     } catch (err) {
@@ -42,8 +43,10 @@ function FindDonorsForm() {
   };
 
   useEffect(() => {
-    if (searchParams.get("bloodGroup")) {
-      handleSearch();
+    const urlBloodGroup = searchParams.get("bloodGroup");
+    if (urlBloodGroup) {
+      setSearchGroup(urlBloodGroup);
+      handleSearch(urlBloodGroup);
     }
   }, [searchParams]);
 

@@ -7,7 +7,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
 
 export default function DonorDashboard() {
-  const { user, login } = useAuth();
+  const { user, updateUserContext } = useAuth();
   const [myDonations, setMyDonations] = useState<any[]>([]);
   const [globalRequests, setGlobalRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,10 +64,8 @@ export default function DonorDashboard() {
     setIsToggling(true);
     try {
       const res = await api.put("/auth/profile", { isAvailable: !user?.isAvailable });
-      // Update our local user state in context
-      const updatedUserInfo = { ...user, isAvailable: res.data.isAvailable };
-      localStorage.setItem("userInfo", JSON.stringify(updatedUserInfo));
-      window.location.reload(); // Quick refresh to update the global auth state reliably
+      // Update our local user state in context reactively without reload
+      updateUserContext(res.data);
     } catch (err) {
       alert("Failed to toggle availability status");
     } finally {
@@ -116,7 +114,7 @@ export default function DonorDashboard() {
               <p className="text-muted text-sm mt-1 font-medium">Your current health and availability status check.</p>
             </div>
             <span className={user?.isAvailable ? "badge-success" : "badge-danger"}>
-              {user?.isAvailable ? "Available Now" : "Busy / Unavailable"}
+              {user?.isAvailable ? "Status: Live / Available" : "Status: Offline"}
             </span>
           </div>
           <div className="space-y-6">

@@ -146,7 +146,7 @@ export default function DashboardLayout({ children, title, items }: DashboardLay
                     My Profile
                   </Link>
                   <Link
-                    href="/settings"
+                    href={`/dashboard/${user?.role}/profile`}
                     className="block px-4 py-2.5 rounded-md text-sm font-medium text-foreground hover:bg-[var(--sidebar-active)]"
                     onClick={() => setIsUserMenuOpen(false)}
                   >

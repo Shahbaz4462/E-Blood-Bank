@@ -50,10 +50,23 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
+    // Automatically parse city and generate dummy license number for organization if missing
+    let extractedCity = city || "";
+    if (!extractedCity && address) {
+      const parts = address.split(",");
+      extractedCity = parts.length > 1 ? parts[parts.length - 2].trim() : address.trim();
+    }
+    if (!extractedCity) extractedCity = "Not Specified";
+
+    let finalLicense = licenseNumber;
+    if (role === "organization" && !finalLicense) {
+      finalLicense = "LIC-" + Math.floor(100000 + Math.random() * 900000);
+    }
+
     // Create user
     const user = await User.create({
-      role, name, email: trimmedEmail, password, phone, city, address,
-      bloodGroup, gender, dateOfBirth, licenseNumber, website
+      role, name, email: trimmedEmail, password, phone, city: extractedCity, address,
+      bloodGroup, gender, dateOfBirth, licenseNumber: finalLicense, website
     });
 
     if (user) {
@@ -257,6 +270,7 @@ const updateProfile = async (req, res) => {
       user.gender = req.body.gender || user.gender;
       user.dateOfBirth = req.body.dateOfBirth || user.dateOfBirth;
       user.bloodGroup = req.body.bloodGroup || user.bloodGroup;
+      user.isAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : user.isAvailable;
       user.licenseNumber = req.body.licenseNumber !== undefined ? req.body.licenseNumber : user.licenseNumber;
       user.website = req.body.website !== undefined ? req.body.website : user.website;
 
@@ -271,6 +285,10 @@ const updateProfile = async (req, res) => {
         city: updatedUser.city,
         address: updatedUser.address,
         bloodGroup: updatedUser.bloodGroup,
+        gender: updatedUser.gender,
+        dateOfBirth: updatedUser.dateOfBirth,
+        lastDonationDate: updatedUser.lastDonationDate,
+        isAvailable: updatedUser.isAvailable,
         licenseNumber: updatedUser.licenseNumber,
         website: updatedUser.website,
         token: generateToken(updatedUser._id),
