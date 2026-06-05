@@ -118,7 +118,7 @@ export default function RecipientRequestsPage() {
                           {req.urgency}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-medium">{req.units} Units</td>
+                      <td className="px-6 py-4 font-medium">{req.units} Units ({req.units * 500}ml)</td>
                       <td className="px-6 py-4">
                         <span className={`badge-${req.status.toLowerCase()}`}>
                           {req.status}
@@ -211,7 +211,7 @@ export default function RecipientRequestsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Units Needed</label>
+                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Units Needed ({formData.units ? formData.units * 500 : 500}ml)</label>
                     <input 
                       type="number" min="1"
                       className="input-field"

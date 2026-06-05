@@ -166,7 +166,7 @@ export default function DashboardLayout({ children, title, items }: DashboardLay
         </header>
 
         <main className="flex-grow overflow-y-auto p-6 md:p-8 bg-background-secondary">
-          <div className="max-w-6xl mx-auto">{children}</div>
+          <div className="max-w-6xl mx-auto animate-fade-in">{children}</div>
         </main>
       </div>
 

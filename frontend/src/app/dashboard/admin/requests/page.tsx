@@ -80,7 +80,7 @@ export default function AdminRequestsPage() {
                         <div className="text-[10px] text-muted-foreground uppercase tracking-widest">{req.requesterRole}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-primary">{req.bloodGroup} • {req.units} Units</div>
+                        <div className="font-bold text-primary">{req.bloodGroup} • {req.units} Units ({(req.units || 1) * 500}ml)</div>
                         <div className="text-xs text-muted">{req.location}</div>
                       </td>
                       <td className="px-6 py-4">

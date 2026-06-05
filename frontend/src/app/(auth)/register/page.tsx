@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import MapSelection from "@/components/MapSelection";
 
 function RegisterForm() {
   const searchParams = useSearchParams();
   const initialRole = searchParams.get("role") || "donor";
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     name: "",
     email: "",
     password: "",
@@ -19,10 +20,16 @@ function RegisterForm() {
     bloodGroup: "A+",
     address: "",
     phone: "",
+    latitude: null,
+    longitude: null,
+    city: "",
+    province: "",
+    country: "",
   });
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { register } = useAuth();
 
@@ -72,7 +79,28 @@ function RegisterForm() {
           </div>
           <div>
             <label>Password</label>
-            <input name="password" type="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" />
+            <div className="relative">
+              <input 
+                name="password" 
+                type={showPassword ? "text" : "password"} 
+                required 
+                value={formData.password} 
+                onChange={handleChange} 
+                placeholder="••••••••"
+                className="pr-12"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.88 9.88 3 3"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line><path d="M10.47 10.47a3.38 3.38 0 0 0 4.06 4.06"></path></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -100,6 +128,22 @@ function RegisterForm() {
           <div>
             <label>Address</label>
             <input name="address" required value={formData.address} onChange={handleChange} placeholder="Street, City, Country" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-xs font-bold text-muted uppercase tracking-wider mb-2 block">Pin Location on Map</label>
+            <MapSelection
+              onLocationSelect={(loc) => {
+                setFormData((prev: any) => ({
+                  ...prev,
+                  address: loc.address,
+                  latitude: loc.latitude,
+                  longitude: loc.longitude,
+                  city: loc.city,
+                  province: loc.province,
+                  country: loc.country,
+                }));
+              }}
+            />
           </div>
         </div>
 

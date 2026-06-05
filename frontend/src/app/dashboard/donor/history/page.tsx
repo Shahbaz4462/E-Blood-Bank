@@ -8,8 +8,14 @@ import { api } from "@/lib/api";
 export default function DonorHistoryPage() {
   const { user } = useAuth();
   const [donations, setDonations] = useState<any[]>([]);
+  const [filteredDonations, setFilteredDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasDownloaded, setHasDownloaded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterBloodGroup, setFilterBloodGroup] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const sidebarItems = [
     { 
@@ -36,10 +42,9 @@ export default function DonorHistoryPage() {
 
   const fetchHistory = async () => {
     try {
-      const res = await api.get("/blood-requests/my");
-      // Filter only completed donations
-      const completed = res.data.filter((d: any) => d.status === "Completed");
-      setDonations(completed);
+      const res = await api.get("/donations");
+      setDonations(res.data);
+      setFilteredDonations(res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -51,11 +56,71 @@ export default function DonorHistoryPage() {
     fetchHistory();
   }, []);
 
-  const handleDownloadReport = () => {
+  // Filter and search logic
+  useEffect(() => {
+    let filtered = donations;
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (d) =>
+          d.recipientName?.toLowerCase().includes(term) ||
+          d.location?.toLowerCase().includes(term) ||
+          d.city?.toLowerCase().includes(term)
+      );
+    }
+
+    if (filterBloodGroup) {
+      filtered = filtered.filter((d) => d.bloodGroup === filterBloodGroup);
+    }
+
+    if (filterStatus) {
+      filtered = filtered.filter((d) => d.status === filterStatus);
+    }
+
+    setFilteredDonations(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, filterBloodGroup, filterStatus, donations]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredDonations.length / itemsPerPage);
+  const paginatedDonations = filteredDonations.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleDownloadPDF = () => {
     setHasDownloaded(true);
     setTimeout(() => {
       window.print();
     }, 150);
+  };
+
+  const handleDownloadExcel = () => {
+    // Create CSV content
+    const headers = ["Donation ID", "Date", "Blood Group", "Units", "Volume (ml)", "Recipient/Organization", "Location", "City", "Status"];
+    const rows = filteredDonations.map(d => [
+      `#${d._id?.slice(-8) || "N/A"}`,
+      new Date(d.donationDate || d.createdAt).toLocaleDateString(),
+      d.bloodGroup,
+      d.units,
+      d.units * 500,
+      d.recipientName || "N/A",
+      d.location,
+      d.city,
+      d.status
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `donation_history_${user?.name}_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -137,40 +202,90 @@ export default function DonorHistoryPage() {
         </div>
 
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden print:border-none print:shadow-none">
-          <div className="p-6 border-b border-border flex justify-between items-center print:hidden">
+          <div className="p-6 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
             <h2 className="text-lg font-semibold text-foreground">Your Donations</h2>
-            {!hasDownloaded && (
+            <div className="flex gap-2">
               <button 
-                onClick={handleDownloadReport}
+                onClick={handleDownloadPDF}
                 className="bg-primary/10 text-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors"
               >
-                Download Report
+                Download PDF
               </button>
-            )}
+              <button 
+                onClick={handleDownloadExcel}
+                className="bg-success/10 text-success px-4 py-2 rounded-lg text-sm font-medium hover:bg-success/20 transition-colors"
+              >
+                Download Excel
+              </button>
+            </div>
           </div>
+          
+          {/* Filters */}
+          <div className="p-4 border-b border-border bg-background-secondary print:hidden">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input
+                type="text"
+                placeholder="Search by recipient, location, city..."
+                className="flex-grow px-4 py-2 bg-background rounded-lg border border-border text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <select
+                className="px-4 py-2 bg-background rounded-lg border border-border text-sm"
+                value={filterBloodGroup}
+                onChange={(e) => setFilterBloodGroup(e.target.value)}
+              >
+                <option value="">All Blood Groups</option>
+                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+              <select
+                className="px-4 py-2 bg-background rounded-lg border border-border text-sm"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="Completed">Completed</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm print:text-base">
               <thead>
                 <tr className="bg-background-secondary text-muted font-medium print:bg-gray-100 print:text-black">
+                  <th className="px-6 py-4">Donation ID</th>
                   <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Recipient Name</th>
                   <th className="px-6 py-4">Blood Group</th>
+                  <th className="px-6 py-4">Units</th>
+                  <th className="px-6 py-4">Recipient/Org</th>
+                  <th className="px-6 py-4">Location</th>
                   <th className="px-6 py-4">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border print:divide-gray-300">
                 {loading ? (
-                  <tr><td colSpan={4} className="px-6 py-10 text-center text-muted">Loading your history...</td></tr>
-                ) : donations.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-10 text-center text-muted">No completed donations recorded yet.</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-muted">Loading your history...</td></tr>
+                ) : paginatedDonations.length === 0 ? (
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-muted">No donations recorded yet.</td></tr>
                 ) : (
-                  donations.map((item, idx) => (
+                  paginatedDonations.map((item, idx) => (
                     <tr key={item._id || idx} className="hover:bg-card-hover transition-colors print:hover:bg-transparent">
-                      <td className="px-6 py-4 text-foreground font-medium print:text-black">{new Date(item.updatedAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-muted print:text-black">{item.requesterName || "Direct Recipient"}</td>
+                      <td className="px-6 py-4 text-foreground font-medium print:text-black text-xs">#{item._id?.slice(-8) || idx}</td>
+                      <td className="px-6 py-4 text-foreground font-medium print:text-black">{new Date(item.donationDate || item.createdAt).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-muted print:text-black font-bold">{item.bloodGroup}</td>
+                      <td className="px-6 py-4 text-muted print:text-black">{item.units} Unit{item.units > 1 ? 's' : ''} ({item.units * 500}ml)</td>
+                      <td className="px-6 py-4 text-muted print:text-black">{item.recipientName || "N/A"}</td>
+                      <td className="px-6 py-4 text-muted print:text-black">{item.location}</td>
                       <td className="px-6 py-4">
-                        <span className="px-2 py-1 badge-success text-[10px] font-bold rounded uppercase print:border print:border-green-600 print:text-green-700">
+                        <span className={`px-2 py-1 text-[10px] font-bold rounded uppercase print:border ${
+                          item.status === "Completed" ? "badge-success print:border-green-600 print:text-green-700" :
+                          item.status === "Scheduled" ? "badge-warning print:border-yellow-600 print:text-yellow-700" :
+                          "badge-danger print:border-red-600 print:text-red-700"
+                        }`}>
                           {item.status}
                         </span>
                       </td>
@@ -180,6 +295,34 @@ export default function DonorHistoryPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-border flex justify-between items-center print:hidden">
+              <span className="text-sm text-muted">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredDonations.length)} of {filteredDonations.length} donations
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-background-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-card-hover transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 text-sm text-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-background-secondary rounded-lg text-sm disabled:opacity-50 hover:bg-card-hover transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

@@ -131,7 +131,7 @@ export default function OrganizationHistoryPage() {
                       </td>
                       <td className="px-6 py-4 font-medium">{t.personName}</td>
                       <td className="px-6 py-4 text-muted">{t.location}</td>
-                      <td className="px-6 py-4 text-right font-bold">{t.quantity}</td>
+                      <td className="px-6 py-4 text-right font-bold">{t.quantity} Units ({t.quantity * 500}ml)</td>
                     </tr>
                   ))
                 )}

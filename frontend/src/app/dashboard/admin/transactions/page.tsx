@@ -105,7 +105,7 @@ export default function AdminTransactionsPage() {
                         <div className="font-medium">{t.personName}</div>
                         <div className="text-xs text-muted-foreground">{t.location}</div>
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-lg">{t.quantity}</td>
+                      <td className="px-6 py-4 text-right font-bold text-lg">{t.quantity} Units ({t.quantity * 500}ml)</td>
                     </tr>
                   ))
                 )}

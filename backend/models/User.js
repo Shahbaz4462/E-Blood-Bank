@@ -87,6 +87,18 @@ const userSchema = new mongoose.Schema(
       "O+": { type: Number, default: 0 },
       "O-": { type: Number, default: 0 },
     },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+    province: {
+      type: String,
+    },
+    country: {
+      type: String,
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },

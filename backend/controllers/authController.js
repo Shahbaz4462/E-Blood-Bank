@@ -15,7 +15,8 @@ const registerUser = async (req, res) => {
   try {
     const {
       role, name, email, password, phone, city, address, 
-      bloodGroup, gender, dateOfBirth, licenseNumber, website
+      bloodGroup, gender, dateOfBirth, licenseNumber, website,
+      latitude, longitude, province, country
     } = req.body;
 
     const trimmedEmail = email ? email.trim().toLowerCase() : "";
@@ -66,7 +67,8 @@ const registerUser = async (req, res) => {
     // Create user
     const user = await User.create({
       role, name, email: trimmedEmail, password, phone, city: extractedCity, address,
-      bloodGroup, gender, dateOfBirth, licenseNumber: finalLicense, website
+      bloodGroup, gender, dateOfBirth, licenseNumber: finalLicense, website,
+      latitude, longitude, province, country
     });
 
     if (user) {
@@ -115,6 +117,22 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        bloodGroup: user.bloodGroup,
+        phone: user.phone,
+        city: user.city,
+        address: user.address,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth,
+        licenseNumber: user.licenseNumber,
+        website: user.website,
+        isAvailable: user.isAvailable,
+        lastDonationDate: user.lastDonationDate,
+        isVerified: user.isVerified,
+        inventory: user.inventory,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        province: user.province,
+        country: user.country,
         token: generateToken(user._id),
       });
     } else {
@@ -273,6 +291,10 @@ const updateProfile = async (req, res) => {
       user.isAvailable = req.body.isAvailable !== undefined ? req.body.isAvailable : user.isAvailable;
       user.licenseNumber = req.body.licenseNumber !== undefined ? req.body.licenseNumber : user.licenseNumber;
       user.website = req.body.website !== undefined ? req.body.website : user.website;
+      user.latitude = req.body.latitude !== undefined ? req.body.latitude : user.latitude;
+      user.longitude = req.body.longitude !== undefined ? req.body.longitude : user.longitude;
+      user.province = req.body.province !== undefined ? req.body.province : user.province;
+      user.country = req.body.country !== undefined ? req.body.country : user.country;
 
       const updatedUser = await user.save();
 
@@ -291,6 +313,10 @@ const updateProfile = async (req, res) => {
         isAvailable: updatedUser.isAvailable,
         licenseNumber: updatedUser.licenseNumber,
         website: updatedUser.website,
+        latitude: updatedUser.latitude,
+        longitude: updatedUser.longitude,
+        province: updatedUser.province,
+        country: updatedUser.country,
         token: generateToken(updatedUser._id),
       });
     } else {
@@ -350,8 +376,64 @@ const getAvailableDonors = async (req, res) => {
     let query = { role: "donor", isAvailable: true };
     if (bloodGroup) query.bloodGroup = bloodGroup;
 
-    const donors = await User.find(query).select("name email phone city address bloodGroup isAvailable lastDonationDate");
-    res.json(donors);
+    // Select location fields to calculate distance
+    const donors = await User.find(query).select(
+      "name email phone city address bloodGroup isAvailable lastDonationDate latitude longitude province country"
+    );
+
+    const reqLat = req.user?.latitude;
+    const reqLon = req.user?.longitude;
+
+    const getDistance = (lat1, lon1, lat2, lon2) => {
+      if (lat1 === undefined || lon1 === undefined || lat2 === undefined || lon2 === undefined ||
+          lat1 === null || lon1 === null || lat2 === null || lon2 === null) {
+        return null;
+      }
+      const R = 6371; // Radius of the Earth in km
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in km
+    };
+
+    // Format donors to calculate and attach dynamic distance
+    let formattedDonors = donors.map((donor) => {
+      const dObj = donor.toObject();
+      const dist = getDistance(reqLat, reqLon, dObj.latitude, dObj.longitude);
+      dObj.distance = dist !== null ? Math.round(dist * 10) / 10 : null; // Round to 1 decimal place
+      return dObj;
+    });
+
+    // Smart Donor Priority Algorithm:
+    // Priority 1: Same City
+    // Priority 2: Nearest distance (same city)
+    // Priority 3: Other cities (nearest distance)
+    formattedDonors.sort((a, b) => {
+      const aSameCity =
+        a.city &&
+        req.user?.city &&
+        a.city.trim().toLowerCase() === req.user.city.trim().toLowerCase();
+      const bSameCity =
+        b.city &&
+        req.user?.city &&
+        b.city.trim().toLowerCase() === req.user.city.trim().toLowerCase();
+
+      if (aSameCity && !bSameCity) return -1;
+      if (!aSameCity && bSameCity) return 1;
+
+      // Both same city or both different cities, sort by distance
+      const distA = a.distance !== null ? a.distance : Infinity;
+      const distB = b.distance !== null ? b.distance : Infinity;
+      return distA - distB;
+    });
+
+    res.json(formattedDonors);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });

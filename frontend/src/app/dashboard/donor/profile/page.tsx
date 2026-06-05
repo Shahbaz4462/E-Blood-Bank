@@ -4,15 +4,20 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { api } from "@/lib/api";
+import MapSelection from "@/components/MapSelection";
 
 export default function DonorProfilePage() {
   const { user, updateUserContext, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<any>({
     name: user?.name || "",
     phone: user?.phone || "",
     city: user?.city || "",
     address: user?.address || "",
+    latitude: user?.latitude || null,
+    longitude: user?.longitude || null,
+    province: user?.province || "",
+    country: user?.country || "",
   });
   const [passwords, setPasswords] = useState({
     currentPassword: "",
@@ -30,6 +35,10 @@ export default function DonorProfilePage() {
         phone: user.phone || "",
         city: user.city || "",
         address: user.address || "",
+        latitude: user.latitude || null,
+        longitude: user.longitude || null,
+        province: user.province || "",
+        country: user.country || "",
       });
     }
   }, [user]);
@@ -179,6 +188,26 @@ export default function DonorProfilePage() {
                   onChange={(e) => setFormData({...formData, address: e.target.value})}
                 />
               </div>
+              {isEditing && (
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Update Map Location</label>
+                  <MapSelection
+                    initialLat={formData.latitude}
+                    initialLng={formData.longitude}
+                    onLocationSelect={(loc) => {
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        address: loc.address,
+                        latitude: loc.latitude,
+                        longitude: loc.longitude,
+                        city: loc.city,
+                        province: loc.province,
+                        country: loc.country,
+                      }));
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {isEditing && (

@@ -1,5 +1,112 @@
 const BloodRequest = require("../models/BloodRequest");
 const User = require("../models/User");
+const Transaction = require("../models/Transaction");
+const Donation = require("../models/Donation");
+
+// Helper to update organization inventory and log transaction when blood request completes
+const updateInventoryOnRequestCompletion = async (request) => {
+  try {
+    const quantity = Number(request.units);
+    const bloodGroup = request.bloodGroup;
+    
+    if (request.type === "request") {
+      // Requester (Receiver) receives blood. Acceptor (Provider) gives blood.
+      
+      // Requester is Organization
+      if (request.requesterRole === "organization") {
+        const org = await User.findById(request.requester);
+        if (org) {
+          if (!org.inventory) org.inventory = {};
+          org.inventory[bloodGroup] = (org.inventory[bloodGroup] || 0) + quantity;
+          await org.save();
+          
+          // Log transaction
+          await Transaction.create({
+            organizationId: org._id,
+            type: "request", // matching "request" received
+            bloodGroup,
+            quantity,
+            personName: request.acceptedBy ? (await User.findById(request.acceptedBy))?.name || "Donor" : "Donor",
+            location: request.location,
+            status: "Completed",
+            note: `Received ${quantity} units of ${bloodGroup} from request`
+          });
+        }
+      }
+      
+      // Acceptor is Organization
+      if (request.acceptedByRole === "organization") {
+        const org = await User.findById(request.acceptedBy);
+        if (org) {
+          if (!org.inventory) org.inventory = {};
+          org.inventory[bloodGroup] = Math.max(0, (org.inventory[bloodGroup] || 0) - quantity);
+          await org.save();
+          
+          // Log transaction
+          await Transaction.create({
+            organizationId: org._id,
+            type: "inventory_remove", // matching "request" provided
+            bloodGroup,
+            quantity,
+            personName: request.requesterName,
+            location: request.location,
+            status: "Completed",
+            note: `Distributed ${quantity} units of ${bloodGroup} for request`
+          });
+        }
+      }
+    } else if (request.type === "donation_offer") {
+      // Requester (Provider) gives blood. Acceptor (Receiver) receives blood.
+      
+      // Requester is Organization
+      if (request.requesterRole === "organization") {
+        const org = await User.findById(request.requester);
+        if (org) {
+          if (!org.inventory) org.inventory = {};
+          org.inventory[bloodGroup] = Math.max(0, (org.inventory[bloodGroup] || 0) - quantity);
+          await org.save();
+          
+          // Log transaction
+          await Transaction.create({
+            organizationId: org._id,
+            type: "donation", // matching donation distribution
+            bloodGroup,
+            quantity,
+            personName: request.acceptedBy ? (await User.findById(request.acceptedBy))?.name || "Recipient" : "Recipient",
+            location: request.location,
+            status: "Completed",
+            note: `Distributed ${quantity} units of ${bloodGroup} via donation offer`
+          });
+        }
+      }
+      
+      // Acceptor is Organization
+      if (request.acceptedByRole === "organization") {
+        const org = await User.findById(request.acceptedBy);
+        if (org) {
+          if (!org.inventory) org.inventory = {};
+          org.inventory[bloodGroup] = (org.inventory[bloodGroup] || 0) + quantity;
+          await org.save();
+          
+          // Log transaction
+          await Transaction.create({
+            organizationId: org._id,
+            type: "request", // matching donation received
+            bloodGroup,
+            quantity,
+            personName: request.requesterName,
+            location: request.location,
+            status: "Completed",
+            note: `Received ${quantity} units of ${bloodGroup} from donation offer`
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in updateInventoryOnRequestCompletion helper:", error);
+  }
+};
+
 
 // @desc    Create new blood request
 // @route   POST /api/blood-requests
@@ -34,30 +141,77 @@ const createBloodRequest = async (req, res) => {
 // @access  Private
 const getBloodRequests = async (req, res) => {
   try {
-    const { role, status, bloodGroup } = req.query;
+    const { role, status, bloodGroup, history, search, page, limit } = req.query;
     let query = {};
 
     if (status) query.status = status;
     if (bloodGroup) query.bloodGroup = bloodGroup;
 
+    // Search filter
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      query.$or = [
+        { requesterName: searchRegex },
+        { location: searchRegex },
+        { city: searchRegex }
+      ];
+    }
+
     // Logic based on role:
     if (req.user.role === "recipient" && !req.query.all) {
       query.requester = req.user._id;
+    } else if (req.user.role === "donor" && !req.query.all) {
+      if (history === "true") {
+        query.acceptedBy = req.user._id;
+        query.status = "Completed";
+      } else {
+        if (!status) {
+          query.$or = [
+            { status: "Pending" },
+            { acceptedBy: req.user._id }
+          ];
+        } else {
+          query.acceptedBy = req.user._id;
+        }
+      }
     } else if (req.user.role !== "admin" && !req.query.all) {
-      // Donors & Organizations see Pending requests or requests they've accepted
+      // Organizations see Pending requests, requests they've accepted, OR requests they've posted
       if (!status) {
         query.$or = [
           { status: "Pending" },
-          { acceptedBy: req.user._id }
+          { acceptedBy: req.user._id },
+          { requester: req.user._id }
         ];
       }
     }
 
-    const requests = await BloodRequest.find(query)
-      .populate('requester', 'name phone email')
-      .populate('acceptedBy', 'name phone email')
-      .sort({ createdAt: -1 });
-    res.json(requests);
+    // Pagination (conditional, only if page parameter is passed)
+    if (page) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 10;
+      const skipNum = (pageNum - 1) * limitNum;
+
+      const total = await BloodRequest.countDocuments(query);
+      const requests = await BloodRequest.find(query)
+        .populate('requester', 'name phone email')
+        .populate('acceptedBy', 'name phone email')
+        .sort({ createdAt: -1 })
+        .skip(skipNum)
+        .limit(limitNum);
+
+      return res.json({
+        requests,
+        page: pageNum,
+        pages: Math.ceil(total / limitNum),
+        total
+      });
+    } else {
+      const requests = await BloodRequest.find(query)
+        .populate('requester', 'name phone email')
+        .populate('acceptedBy', 'name phone email')
+        .sort({ createdAt: -1 });
+      return res.json(requests);
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
@@ -119,6 +273,27 @@ const updateRequestStatus = async (req, res) => {
         if (request.acceptedByRole === "donor") {
           await User.findByIdAndUpdate(request.acceptedBy, { lastDonationDate: new Date() });
         }
+        await updateInventoryOnRequestCompletion(request);
+        
+        // Create donation record
+        try {
+          await Donation.create({
+            donor: request.acceptedBy,
+            donorName: (await User.findById(request.acceptedBy))?.name || "Unknown",
+            donorRole: request.acceptedByRole,
+            recipient: request.requester,
+            recipientName: request.requesterName,
+            recipientRole: request.requesterRole,
+            bloodGroup: request.bloodGroup,
+            units: request.units,
+            location: request.location,
+            city: request.city,
+            status: "Completed",
+            bloodRequestId: request._id,
+          });
+        } catch (donationError) {
+          console.error("Error creating donation record:", donationError);
+        }
       } else {
         request.status = "Blood Given";
       }
@@ -139,6 +314,27 @@ const updateRequestStatus = async (req, res) => {
         request.status = "Completed";
         if (request.acceptedByRole === "donor") {
           await User.findByIdAndUpdate(request.acceptedBy, { lastDonationDate: new Date() });
+        }
+        await updateInventoryOnRequestCompletion(request);
+        
+        // Create donation record
+        try {
+          await Donation.create({
+            donor: request.acceptedBy,
+            donorName: (await User.findById(request.acceptedBy))?.name || "Unknown",
+            donorRole: request.acceptedByRole,
+            recipient: request.requester,
+            recipientName: request.requesterName,
+            recipientRole: request.requesterRole,
+            bloodGroup: request.bloodGroup,
+            units: request.units,
+            location: request.location,
+            city: request.city,
+            status: "Completed",
+            bloodRequestId: request._id,
+          });
+        } catch (donationError) {
+          console.error("Error creating donation record:", donationError);
         }
       } else {
         request.status = "Blood Taken";

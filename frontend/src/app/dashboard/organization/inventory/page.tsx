@@ -82,8 +82,8 @@ export default function OrganizationInventoryPage() {
               <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center text-2xl font-bold text-primary mb-4 group-hover:scale-110 transition-transform">
                 {group}
               </div>
-              <p className="text-3xl font-bold text-foreground">{quantity}</p>
-              <p className="text-xs text-muted uppercase tracking-widest mt-1">Units Available</p>
+              <p className="text-3xl font-bold text-foreground">{quantity} Units</p>
+              <p className="text-xs text-muted uppercase tracking-widest mt-1">({quantity * 500}ml) Available</p>
             </div>
           ))}
         </div>
@@ -105,7 +105,7 @@ export default function OrganizationInventoryPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Quantity (Units)</label>
+                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Quantity (Units: {formData.quantity ? formData.quantity * 500 : 500}ml)</label>
                     <input 
                       type="number"
                       required

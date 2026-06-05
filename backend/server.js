@@ -55,12 +55,14 @@ const authRoutes = require("./routes/authRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const bloodRequestRoutes = require("./routes/bloodRequestRoutes");
+const donationRoutes = require("./routes/donationRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/organization", organizationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/blood-requests", bloodRequestRoutes);
+app.use("/api/donations", donationRoutes);
 app.use("/api/public", publicRoutes);
 
 // Socket.io for chat

@@ -71,7 +71,7 @@ export default function RecipientDashboard() {
           </div>
           <div className="stat-card">
             <h3 className="text-muted text-sm font-semibold mb-1">Blood Received</h3>
-            <p className="text-3xl font-extrabold text-foreground">{bloodReceivedCount} Units</p>
+            <p className="text-3xl font-extrabold text-foreground">{bloodReceivedCount} Units ({bloodReceivedCount * 500}ml)</p>
             <span className="text-xs text-success font-bold mt-2 inline-block">{lastReceivedText}</span>
           </div>
         </div>

@@ -71,7 +71,7 @@ export default async function Home() {
           <div className="max-w-7xl mx-auto px-6 md:px-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {statItems.map((stat, i) => (
-                <div key={i} className="stat-card flex items-center gap-4">
+                <div key={i} className="stat-card flex items-center gap-4 animate-slide-up" style={{ animationDelay: `${i * 0.1}s` }}>
                   <div className={`icon-box ${stat.iconBg} text-xl`}>
                     {stat.icon}
                   </div>
@@ -101,7 +101,8 @@ export default async function Home() {
               {features.map((f, i) => (
                 <div
                   key={i}
-                  className="glass-card text-center sm:text-left flex flex-col items-center sm:items-start"
+                  className="glass-card text-center sm:text-left flex flex-col items-center sm:items-start animate-slide-up"
+                  style={{ animationDelay: `${i * 0.15}s` }}
                 >
                   <div className="w-12 h-12 rounded-lg bg-background-secondary border border-border flex items-center justify-center text-xl mb-6">
                     {f.icon}
@@ -117,7 +118,7 @@ export default async function Home() {
         {/* CTA Section */}
         <section className="py-20 md:py-32 bg-background">
           <div className="max-w-4xl mx-auto px-6 md:px-8">
-            <div className="glass-card border border-border rounded-2xl p-10 md:p-16 text-center shadow-lg relative overflow-hidden">
+            <div className="glass-card border border-border rounded-2xl p-10 md:p-16 text-center shadow-lg relative overflow-hidden animate-fade-in">
               <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
               <div className="relative z-10">
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-foreground">
@@ -129,13 +130,13 @@ export default async function Home() {
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                   <Link
                     href="/register"
-                    className="btn-primary text-base px-8 py-3"
+                    className="btn-primary text-base px-8 py-3 hover:scale-105 transition-transform"
                   >
                     Join Now
                   </Link>
                   <Link
                     href="/about"
-                    className="btn-outline text-base px-8 py-3"
+                    className="btn-outline text-base px-8 py-3 hover:scale-105 transition-transform"
                   >
                     Learn More
                   </Link>

@@ -107,7 +107,7 @@ export default function DonorRequestsPage() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                    {req.units} Units Required
+                    {req.units} Units ({req.units * 500}ml) Required
                   </div>
                   {req.message && (
                     <p className="text-xs text-muted bg-background-secondary p-3 rounded-lg italic">
