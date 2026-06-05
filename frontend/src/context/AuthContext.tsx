@@ -20,6 +20,10 @@ interface User {
   lastDonationDate?: string;
   isVerified?: boolean;
   inventory?: any;
+  latitude?: number | null;
+  longitude?: number | null;
+  province?: string;
+  country?: string;
 }
 
 import { api } from "@/lib/api";
